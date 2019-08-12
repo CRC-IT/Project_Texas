@@ -8,6 +8,7 @@ import plotly.graph_objs as go
 import pyodbc
 from dash.dependencies import Input, Output, State
 
+
 #mapbox_access_token = 'pk.eyJ1Ijoia3dvbm0iLCJhIjoiY2p4MHk0NTlhMDF4bjN6bnp6bm8xcmswOSJ9.OANG2d0eU8VCjsShWpccgQ'
 # USE MARKDOWN FOR HTML
 
@@ -55,11 +56,13 @@ app = dash.Dash(__name__, external_stylesheets=[dbc.themes.LUX])
 #                 [MAP_EASTING],
 #                 [LATITUDE],
 #                 [LONGITUDE],
-#                 [mrkname],
-#                 [top_perf],
-#                 [bot_perf],
-#                 [frac_flag],
-#                 [perf_status],
+#                 [mrkname] as [MRKNAME],
+#                 [top_perf] as [TOP_PERF],
+#                 [bot_perf] as [BOT_PERF],
+#                 [frac_flag] as [FRAC_FLAG],
+#                 [perf_status] [PERF_STATUS],
+#                 [SURVEY_DATE],
+#                 [perf_start_date] as [PERF_START_DATE],
 #                 CONCAT(WELL_COMMON_NAME,'_',API_SUFFIX) as NEW_WELL_NAME
 #                 FROM [BDA_RWI].[dbo].[surveys_markers_perfs_v] where [WELL_COMMON_NAME] in ('B748', 'B623', 'D716', 'B634', 'B737', 'B748', 'B706', 'D719', 'B739', 'B568', 'A303', 'A307', 'D748')
 #                  order by [MD] asc;''', cnxn
@@ -69,6 +72,7 @@ BLKENG_BOREHOLE_QUERY = pd.read_csv(r'C:\Users\kwonm\Documents\TEST\TEXAS SOURCE
 BLKENG_COMPL_DF = pd.read_csv(r'C:\Users\kwonm\Documents\TEST\TEXAS SOURCE FILES\comp.csv')
 INITIAL_QUERY = pd.read_csv(r'C:\Users\kwonm\Documents\TEST\TEXAS SOURCE FILES\points.csv')
 INITIAL_QUERY_1 = INITIAL_QUERY[INITIAL_QUERY['WELL_COMMON_NAME'].isin(['B748', 'B623', 'D716', 'B634', 'B737', 'B748', 'B706', 'D719', 'B739', 'B568', 'A303', 'A307', 'D748'])]
+
 
 def clean_smp(query):
     """
@@ -80,8 +84,8 @@ def clean_smp(query):
         OUTPUT: DATAFRAME
     """
 
-    query['mrkname'] = query['mrkname'].str.strip()
-    query['mrkname'] = query['mrkname'].replace('F0', 'FO')
+    query['MRKNAME'] = query['MRKNAME'].str.strip()
+    query['MRKNAME'] = query['MRKNAME'].replace('F0', 'FO')
     # drop rows with null API suffixes
     query = query.dropna(subset=['API_SUFFIX'])
 
@@ -122,8 +126,8 @@ def make_marker_trace(well_name, df):
     """
 
     well_coord = df.loc[df['NEW_WELL_NAME'] == well_name]  # filtered df
-    well_coord = well_coord[pd.notnull(well_coord['mrkname'])]  # filter out null values for marker name
-    grouped = well_coord.groupby('mrkname').first()
+    well_coord = well_coord[pd.notnull(well_coord['MRKNAME'])]  # filter out null values for marker name
+    grouped = well_coord.groupby('MRKNAME').first()
     marker_index = grouped.index
     mrk_clr = marker_index.map(marker_colordict)
 
@@ -157,11 +161,11 @@ def make_perf_trace(well_name, df):
     """
 
     well_coord = df.loc[df['NEW_WELL_NAME'] == well_name]  # filtered df
-    well_coord = well_coord[pd.notnull(well_coord['perf_status'])]
-    well_coord.loc[well_coord['mrkname'].isnull(), 'mrkname'] = 'N/A'
+    well_coord = well_coord[pd.notnull(well_coord['PERF_STATUS'])]
+    well_coord.loc[well_coord['MRKNAME'].isnull(), 'MRKNAME'] = 'N/A'
 
     perf_status_color = {'INACTIVE': '#f57b42', 'ACTIVE': 'green'}
-    perf_clr = well_coord['perf_status'].map(perf_status_color)
+    perf_clr = well_coord['PERF_STATUS'].map(perf_status_color)
 
     trace = go.Scatter3d(
         x = well_coord['MAP_EASTING'], y = well_coord['MAP_NORTHING'], z = well_coord['TVDSS'],
@@ -171,9 +175,9 @@ def make_perf_trace(well_name, df):
                     symbol = 'diamond',
                     opacity = .1),
         name = well_name + ' Perfs',
-        text = 'Top Perf: ' + well_coord['top_perf'].astype(str) + "<br>" + "Bottom Perf: " + well_coord[
-            'bot_perf'].astype(str) + "<br>" + 'Perf Status: ' + well_coord['perf_status'].astype(str) + "<br>" +
-             "Marker: " + well_coord['mrkname'],
+        text = 'Top Perf: ' + well_coord['TOP_PERF'].astype(str) + "<br>" + "Bottom Perf: " + well_coord[
+            'BOT_PERF'].astype(str) + "<br>" + 'Perf Status: ' + well_coord['PERF_STATUS'].astype(str) + "<br>" +
+             "Marker: " + well_coord['MRKNAME'],
         legendgroup = 'Perfs',
         # hoverinfo = 'text',   <--------- gives only the text
         showlegend = True
@@ -189,7 +193,7 @@ def make_frac_trace(well_name, df):
         OUTPUT: PLOTLY DATA TRACE FOR WELL FRACS
     """
     well_coord = df.loc[df['NEW_WELL_NAME'] == well_name]  # filtered df
-    well_coord = well_coord.loc[(well_coord.frac_flag == 'F') | (well_coord.frac_flag == 'X')]
+    well_coord = well_coord.loc[(well_coord.FRAC_FLAG == 'F') | (well_coord.FRAC_FLAG == 'X')]
 
     trace = go.Scatter3d(
         x = well_coord['MAP_EASTING'], y = well_coord['MAP_NORTHING'], z = well_coord['TVDSS'],
@@ -199,7 +203,7 @@ def make_frac_trace(well_name, df):
                     symbol = 'diamond',
                     opacity = .08),
         name = well_name + ' Fracs',
-        text = "Fracs: True" + "<br>" + "Marker: " + well_coord['mrkname'],
+        text = "Fracs: True" + "<br>" + "Marker: " + well_coord['MRKNAME'],
         legendgroup = 'Fracs',
         # hoverinfo = 'text',   <--------- gives only the text
         showlegend = True
@@ -286,8 +290,9 @@ def plot_3d_wellbore(wellbore_df,fault):
             trace = make_frac_trace(i, df)
             data_traces.append(trace)
 
-        for i in fault:
-            data_traces.extend(add_fault(i))
+        if fault != None:
+            for i in fault:
+                data_traces.extend(add_fault(i))
 
     return data_traces
 
@@ -304,7 +309,7 @@ marker_colordict = {i: marker_colors[j % len(marker_colors)] for j, i in enumera
 #itertools / zip
 
 #dictionaries for reservoirs, pools, crbs
-
+clicks = None
 reservoir = {'Ranger': 'R',
             'Terminal': 'TE',
             'UPFord': 'UF'}
@@ -328,6 +333,18 @@ pool_crb = { 'R07N' : [10, 11, 9],
              'UF90': [44, 45, 46],
              'UF98': [26, 31]
              }
+
+lb_faults = {'LBU': 'LBU FLT',
+            'LBU A1-N': 'LBU A1-N FLT',
+            'LBU A1-S': 'LBU A1-S FLT',
+            'Junipero': 'JUNIPERO FLT',
+            'Junipero A1': 'JUNIPERO A1 FLT',
+            'Belmont': 'BELMONT FLT',
+            'Belmont A1': 'BELMONT A1 FLT',
+            'Belmont B1': 'BELMONT B1 FLT',
+            'Daisy': 'DAISY_1',
+            'Daisy B1': 'DAISY_B-1',
+            'Daisy B2': 'DAISY AVE-B2 FLT'}
 
 layout = go.Layout(
                                                 height = 700,
@@ -377,29 +394,18 @@ body = dbc.Container([
                 dcc.Dropdown(id = 'wells',
                              placeholder = 'Select Wells',
                              multi = True),
+                dcc.Markdown(
+                    'Select checkboxes below to see correlated incomplete wells.  \nThis checklist will generate only if applicable.'),
+                dcc.Checklist(id='incompletes',
+                              values=[],
+                              labelStyle={'display': 'block'}),
                 html.Div('Select Fault by Fault Name'),
                 dcc.Dropdown(id = 'faults',
                              placeholder= 'Select Fault(s)',
                              multi= True,
-                            options = [{'label': 'LBU', 'value': 'LBU FLT'},
-                                        {'label': 'LBU A1-N', 'value': 'LBU A1-N FLT'},
-                                       {'label': 'LBU A1-S', 'value': 'LBU A1-S FLT'},
-                                       {'label': 'Junipero', 'value': 'JUNIPERO FLT'},
-                                       {'label': 'Junipero A1', 'value': 'JUNIPERO A1 FLT'},
-                                        {'label': 'Belmont', 'value': 'BELMONT FLT'},
-                                        {'label': 'Belmont A1', 'value': 'BELMONT A1 FLT'},
-                                        {'label': 'Belmont B1', 'value': 'BELMONT B1 FLT'},
-                                       {'label': 'Daisy', 'value': 'DAISY_1'},
-                                       {'label': 'Daisy B1', 'value': 'DAISY_B-1'},
-                                       {'label': 'Daisy B2', 'value': 'DAISY AVE-B2 FLT'}]
-                             ),
-                dcc.Markdown('Select checkboxes below to see correlated incomplete wells.  \nThis checklist will generate only if applicable.'),
-                dcc.Checklist(id = 'incompletes',
-                              values = [],
-                              labelStyle = {'display': 'block'})
-            ],
-                width = 3
-            ),
+                            options = [{'label': i, 'value': lb_faults[i]} for i in lb_faults])
+                    ], width = 3
+                ),
             dbc.Col([
                     html.H3('Subsurface Map'),
                     dcc.Graph(id='subsurface viz',
@@ -412,7 +418,7 @@ body = dbc.Container([
                     #           )
                 ],
                 width = 9
-            )
+                )
         ])
 ], fluid = True)
 
@@ -474,16 +480,17 @@ def return_incomplete_wells(well_selection, incompletes):
      Input('faults', 'value')],
     [State('subsurface viz', 'figure')]
 )
+
 def update_3d_graph(well_names, incomplete_wells, fault, figure):
 
-    if well_names == None or incomplete_wells == None and fault != None:
+    if (well_names == None or incomplete_wells == None) and fault != None:
         df = pd.DataFrame()
         figure['data'] = plot_3d_wellbore(df, fault = fault)
         figure['layout'] = layout
 
         return figure
 
-    elif (figure['data'] == [] or (figure["data"][0]["name"] != well_names or incomplete_wells)):
+    if (figure['data'] == [] or (figure["data"][0]["name"] != well_names or incomplete_wells)):
 
         new_well_names = list(BLKENG_BOREHOLE_QUERY[BLKENG_BOREHOLE_QUERY['wellid'].isin(well_names)]['NEW_WELL_NAME'])
         new_well_names.extend(incomplete_wells)
@@ -499,30 +506,31 @@ def update_3d_graph(well_names, incomplete_wells, fault, figure):
         #             [MAP_EASTING],
         #             [LATITUDE],
         #             [LONGITUDE],
-        #             [mrkname],
-        #             [top_perf],
-        #             [bot_perf],
-        #             [frac_flag],
-        #             [perf_status],
+        #             [mrkname] as [MRKNAME],
+        #             [top_perf] as [TOP_PERF],
+        #             [bot_perf] as [BOT_PERF],
+        #             [frac_flag] as [FRAC_FLAG],
+        #             [perf_status] [PERF_STATUS],
+        #             [SURVEY_DATE],
+        #             [perf_start_date] as [PERF_START_DATE],
         #             CONCAT(WELL_COMMON_NAME,'_',API_SUFFIX) as NEW_WELL_NAME
         #             FROM [BDA_RWI].[dbo].[surveys_markers_perfs_v] where CONCAT(WELL_COMMON_NAME,'_',API_SUFFIX) in (%s) order by [MD] asc;''' % placeholders
         #
         # df = pd.read_sql(SMP_QUERY, cnxn, params = new_well_names)
 
-
         df = INITIAL_QUERY[INITIAL_QUERY['NEW_WELL_NAME'].isin(new_well_names)]
         figure['data'] = plot_3d_wellbore(df, fault)
         #need to convert fault input to string to pass into fault function. one fault at time at first?? multiple means big list. need
-        #to break to big list to smaller strings. 
+        #to break to big list to smaller strings.
         figure['layout'] = layout
         return figure
 
+
 # run the server
 if __name__ == '__main__':
-    app.run_server(debug = False)
+    app.run_server(host = '0.0.0.0', debug = False)
 # dash will automatically refresh browser when change in code when debug = True
 
 #data/logic files
 #single quotes
 
-host = '0.0.0.0',
